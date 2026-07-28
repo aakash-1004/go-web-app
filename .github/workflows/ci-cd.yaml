@@ -1,0 +1,53 @@
+name: CI-CD
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'go-web-app/values.yaml'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.5'
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Set image tag
+        id: vars
+        run: echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: aakash0908/go-web-app:${{ steps.vars.outputs.tag }}
+
+      - name: Update Helm chart image tag
+        run: |
+          sed -i "s/tag: .*/tag: \"${{ steps.vars.outputs.tag }}\"/" go-web-app/values.yaml
+          cat go-web-app/values.yaml
+
+      - name: Commit and push updated values.yaml
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add go-web-app/values.yaml
+          git commit -m "ci: bump image tag to ${{ steps.vars.outputs.tag }}" || echo "No changes to commit"
+          git push
