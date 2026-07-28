@@ -3,7 +3,7 @@ replicaCount: 2
 image:
   repository: aakash0908/go-web-app
   pullPolicy: IfNotPresent
-  tag: "f3b9829"
+  tag: "496e81e"
 
 imagePullSecrets: []
 nameOverride: ""
